@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIOps Engine Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --glass-bg: rgba(22, 30, 48, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent-brand: #3b82f6;
+            --accent-hover: #2563eb;
+            --critical: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(239, 68, 68, 0.1), transparent 25%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Nav Sidebar */
+        aside {
+            width: 280px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid var(--glass-border);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        nav a {
+            display: block;
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            box-shadow: inset 2px 0 0 var(--accent-brand);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 3rem 4rem;
+            overflow-y: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 { font-size: 2rem; font-weight: 800; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(12px);
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card span { font-size: 0.875rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .stat-card h3 { font-size: 2.5rem; margin-top: 0.5rem; font-weight: 800; }
+        .critical-text { color: var(--critical); }
+        .success-text { color: var(--success); }
+
+        /* Incident Table */
+        .glass-panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding-bottom: 1rem; color: var(--text-muted); font-weight: 600; font-size: 0.875rem; border-bottom: 1px solid var(--glass-border); }
+        td { padding: 1.25rem 0; font-size: 0.95rem; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+        tr:last-child td { border-bottom: none; }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .badge-critical { background: rgba(239, 68, 68, 0.15); color: var(--critical); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-open { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-resolved { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        button {
+            background: var(--accent-brand);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover { background: var(--accent-hover); box-shadow: 0 0 12px rgba(59, 130, 246, 0.5); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Modal */
+        #modal {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+        #modal.open { opacity: 1; pointer-events: all; }
+        
+        .modal-content {
+            background: var(--bg-color);
+            border: 1px solid var(--glass-border);
+            width: 600px;
+            max-width: 90vw;
+            border-radius: 16px;
+            padding: 2.5rem;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        #modal.open .modal-content { transform: translateY(0); }
+        
+        .modal-content h2 { margin-bottom: 1rem; }
+        .modal-content p { color: var(--text-muted); line-height: 1.6; margin-bottom: 1.5rem;}
+        
+        .analysis-box {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--glass-border);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            min-height: 80px;
+        }
+        
+        pre { white-space: pre-wrap; font-family: monospace; font-size: 0.85rem; color: #a5b4fc; }
+
+        .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; }
+        .btn-cancel { background: transparent; border: 1px solid var(--glass-border); }
+        .btn-cancel:hover { background: rgba(255, 255, 255, 0.05); box-shadow: none; }
+        .btn-execute { background: var(--success); }
+        .btn-execute:hover { background: #059669; box-shadow: 0 0 12px rgba(16, 185, 129, 0.5); }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="brand">AIOps Engine</div>
+        <nav>
+            <a href="#" id="nav-incidents" class="active" onclick="switchTab('incidents')">🔥 Incidents</a>
+            <a href="#" id="nav-metrics" onclick="switchTab('metrics')">📊 Metrics</a>
+            <a href="#" id="nav-logs" onclick="switchTab('logs')">📝 Logs</a>
+            <a href="#" id="nav-settings" onclick="switchTab('settings')">⚙️ Settings</a>
+        </nav>
+    </aside>
+
+    <main>
+        <!-- Incidents Tab -->
+        <div id="view-incidents" class="tab-view">
+            <header>
+                <h1>Dashboard</h1>
+                <button id="refreshBtn" onclick="fetchIncidents()">↻ Refresh Now</button>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span>Active Anomalies</span>
+                    <h3 id="stat-anomalies" class="critical-text">0</h3>
+                </div>
+                <div class="stat-card">
+                    <span>Resolved Tickets</span>
+                    <h3 id="stat-resolved" class="success-text">0</h3>
+                </div>
+                <div class="stat-card">
+                    <span>Auto-Remediation</span>
+                    <h3 style="color: var(--accent-brand)">Enabled</h3>
+                </div>
+            </div>
+
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1.5rem;">Recent Incidents</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Source</th>
+                            <th>Time</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incident-list">
+                        <tr><td colspan="5" style="text-align:center; color: var(--text-muted)">Loading incidents...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Metrics Tab -->
+        <div id="view-metrics" class="tab-view" style="display: none;">
+            <header><h1>📊 Prometheus Metrics</h1></header>
+            <div class="glass-panel">
+                <p style="color: var(--text-muted)">Metrics view mapping is currently under construction. Please use Grafana for advanced metric analysis.</p>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="view-logs" class="tab-view" style="display: none;">
+            <header><h1>📝 Loki Streams</h1></header>
+            <div class="glass-panel" style="font-family: monospace;">
+                <p style="color: #10b981;">[SYSTEM] Logger initialized...</p>
+                <p style="color: #3b82f6;">[INFO] Ingesting logs over API...</p>
+                <p style="color: var(--text-muted)">More historical logs will appear here when connected to Grafana Loki UI.</p>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="view-settings" class="tab-view" style="display: none;">
+            <header><h1>⚙️ Configuration Settings</h1></header>
+            <div class="glass-panel">
+                <h3>Current Engine Settings</h3>
+                <br>
+                <p><strong>Environment:</strong> Development</p>
+                <p><strong>LLM Provider:</strong> Ollama (qwen3:4b)</p>
+                <p><strong>Safety Mode:</strong> Approval Required</p>
+                <p><strong>Auto-Execute:</strong> Disabled default</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Analysis Modal -->
+    <div id="modal">
+        <div class="modal-content">
+            <h2>AI Root Cause Analysis</h2>
+            <p>Incident <span id="m-id" style="font-family: monospace; color: var(--accent-brand)"></span></p>
+            
+            <div class="analysis-box">
+                <strong>Root Cause:</strong>
+                <pre id="m-rca">Run analysis to determine root cause...</pre>
+                
+                <br>
+                <strong>Suggested Command:</strong>
+                <pre id="m-action">...</pre>
+            </div>
+            
+            <div id="remediation-result" style="color: var(--success); margin-bottom: 1rem; font-weight: bold; display: none;"></div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">Close</button>
+                <button class="btn-execute" id="btn-analyze" onclick="triggerAnalyze()">✨ Run LLM Analysis</button>
+                <button class="btn-execute" id="btn-remediate" onclick="triggerExecute()" style="display:none;">⚡ Execute Fix (Auto)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+            document.querySelectorAll('.tab-view').forEach(t => t.style.display = 'none');
+            
+            document.getElementById('nav-' + tabId).classList.add('active');
+            document.getElementById('view-' + tabId).style.display = 'block';
+            
+            if(tabId === 'incidents') fetchIncidents();
+        }
+
+        let currentIncident = null;
+
+        async function fetchIncidents() {
+            try {
+                const res = await fetch('/incidents');
+                const data = await res.json();
+                
+                const table = document.getElementById('incident-list');
+                table.innerHTML = '';
+                
+                let activeCount = 0;
+                let resolvedCount = 0;
+
+                data.forEach(inc => {
+                    if (inc.status === 'open') activeCount++;
+                    if (inc.status === 'resolved') resolvedCount++;
+
+                    const severityClass = inc.severity === 'high' || inc.severity === 'critical' ? 'badge-critical' : 'badge-open';
+                    const statusClass = inc.status === 'resolved' ? 'badge-resolved' : 'badge-open';
+                    const dateStr = new Date(inc.created_at).toLocaleString();
+
+                    table.innerHTML += `
+                        <tr>
+                            <td style="font-family: monospace; color: var(--text-muted)">...${inc.id.substring(inc.id.length-8)}</td>
+                            <td><span class="badge ${statusClass}">${inc.status}</span></td>
+                            <td style="text-transform: capitalize">${inc.source}</td>
+                            <td style="color: var(--text-muted)">${dateStr}</td>
+                            <td>
+                                <button onclick="openModal('${inc.id}')">Inspect</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('stat-anomalies').innerText = activeCount;
+                document.getElementById('stat-resolved').innerText = resolvedCount;
+
+                if(data.length === 0) {
+                    table.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-muted)">No incidents found! System is healthy.</td></tr>`;
+                }
+            } catch (err) {
+                console.error("Error fetching incidents:", err);
+            }
+        }
+
+        async function openModal(id) {
+            currentIncident = id;
+            document.getElementById('m-id').innerText = id;
+            document.getElementById('m-rca').innerText = "Run analysis to determine root cause...";
+            document.getElementById('m-action').innerText = "...";
+            document.getElementById('btn-analyze').style.display = "block";
+            document.getElementById('btn-remediate').style.display = "none";
+            document.getElementById('remediation-result').style.display = "none";
+            
+            const res = await fetch('/incidents');
+            const data = await res.json();
+            const inc = data.find(i => i.id === id);
+            
+            if (inc && inc.root_cause_analysis) {
+                document.getElementById('m-rca').innerText = inc.root_cause_analysis;
+                document.getElementById('m-action').innerText = inc.suggested_action;
+                document.getElementById('btn-analyze').style.display = "none";
+                if (inc.status !== 'resolved') {
+                    document.getElementById('btn-remediate').style.display = "block";
+                }
+            }
+            
+            document.getElementById('modal').classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('open');
+            currentIncident = null;
+        }
+
+        async function triggerAnalyze() {
+            const btn = document.getElementById('btn-analyze');
+            btn.disabled = true;
+            btn.innerText = "Analyzing...";
+            
+            try {
+                const res = await fetch(`/analyze/${currentIncident}`, { method: 'POST' });
+                const inc = await res.json();
+                
+                document.getElementById('m-rca').innerText = inc.root_cause_analysis || "Failed to analyze";
+                document.getElementById('m-action').innerText = inc.suggested_action || "Manual action needed";
+                
+                btn.style.display = "none";
+                document.getElementById('btn-remediate').style.display = "block";
+            } catch (err) {
+                document.getElementById('m-rca').innerText = "Network Error during analysis.";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "✨ Run LLM Analysis";
+            }
+        }
+
+        async function triggerExecute() {
+            const btn = document.getElementById('btn-remediate');
+            btn.disabled = true;
+            btn.innerText = "Executing...";
+            const actionCmd = document.getElementById('m-action').innerText;
+
+            try {
+                const res = await fetch(`/execute`, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        incident_id: currentIncident,
+                        action_command: actionCmd,
+                        force: true
+                    })
+                });
+                const inc = await res.json();
+                
+                const resultBox = document.getElementById('remediation-result');
+                resultBox.style.display = "block";
+                resultBox.innerText = `Result: ${inc.remediation_log || 'Unknown'}`;
+                
+                btn.style.display = "none";
+                fetchIncidents();
+            } catch (err) {
+                alert("Execution failed!");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "⚡ Execute Fix (Auto)";
+            }
+        }
+
+        fetchIncidents();
+        setInterval(() => {
+            if(document.getElementById('view-incidents').style.display !== 'none'){
+                fetchIncidents();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

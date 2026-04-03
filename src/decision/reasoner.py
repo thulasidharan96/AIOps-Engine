@@ -17,7 +17,7 @@ class LLMReasoner:
         Analyze the incident to determine root cause and suggest action.
         Mutates the incident object in-place.
         """
-        if settings.OPENAI_API_KEY == "sk-mock-key":
+        if settings.ENVIRONMENT != "development" and settings.OPENAI_API_KEY == "sk-mock-key":
             self._mock_analysis(incident)
             return
 
@@ -33,12 +33,22 @@ class LLMReasoner:
                 response_format={"type": "json_object"}
             )
             
-            result = json.loads(response.choices[0].message.content)
+            raw_content = response.choices[0].message.content.strip()
+            
+            # Clean markdown JSON block formatting if the model leaked it
+            if raw_content.startswith("```json"):
+                raw_content = raw_content[7:]
+            if raw_content.startswith("```"):
+                raw_content = raw_content[3:]
+            if raw_content.endswith("```"):
+                raw_content = raw_content[:-3]
+                
+            result = json.loads(raw_content.strip())
             incident.root_cause_analysis = result.get("root_cause", "Analysis incomplete")
             incident.suggested_action = result.get("suggested_action", "No action suggested")
             
         except Exception as e:
-            incident.root_cause_analysis = f"Failed to analyze: {str(e)}"
+            incident.root_cause_analysis = f"Failed to analyze: {str(e)}\nRaw Response: {response.choices[0].message.content if 'response' in locals() else 'None'}"
             incident.suggested_action = "Manual intervention required"
 
     def _build_prompt(self, incident: Incident) -> str:

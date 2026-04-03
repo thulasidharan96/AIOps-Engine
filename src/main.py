@@ -11,8 +11,20 @@ from src.ingestion.loki_collector import LokiCollector
 from src.ingestion.prom_collector import PrometheusCollector
 from src.decision.reasoner import LLMReasoner
 from src.execution.k8s_executor import K8sExecutor
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
+
+# Mount Static Files for UI
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+@app.get("/", response_class=FileResponse)
+async def serve_dashboard():
+    return FileResponse(os.path.join(static_dir, "index.html"))
 
 # Dependency initializations
 anomaly_detector = AnomalyDetector()
